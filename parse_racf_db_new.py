@@ -25,20 +25,20 @@ import argparse
 from struct import pack,unpack
 
 BLKSIZE		= 4096
-T_SEG		= '\x02'
-T_BAM		= '\x00'
-T_DAT		= '\x83'
-T_IND		= '\x8A'
-T_EMP		= '\xC3'
-T_INDREG	= '\x00'
-T_INDNOR	= '\x21'
-T_INDGRP	= '\x01'
-T_INDUSR	= '\x02'
-T_INDDST	= '\x04'
-T_INDGEN	= '\x05'
-T_SEGBASE	= '\x01'
-IT_ALIAS	= '\x62'
-I_BLKID		= '\x4e'
+T_SEG		= b'\x02'
+T_BAM		= b'\x00'
+T_DAT		= b'\x83'
+T_IND		= b'\x8A'
+T_EMP		= b'\xC3'
+T_INDREG	= b'\x00'
+T_INDNOR	= b'\x21'
+T_INDGRP	= b'\x01'
+T_INDUSR	= b'\x02'
+T_INDDST	= b'\x04'
+T_INDGEN	= b'\x05'
+T_SEGBASE	= b'\x01'
+IT_ALIAS	= b'\x62'
+I_BLKID		= b'\x4e'
 
 # 0=off, 1=info, 2=loud, 3=header/template info
 DEBUG 		= 0
@@ -54,10 +54,10 @@ recEntryName = ""
 ##
 def processICB(icb):
 	eyecatcher = icb[1010:1018].decode('cp500')
-	num_bam =   int(icb[4:8].encode('hex'),16)
-	rba_ind1 =  int(icb[14:20].encode('hex'),16)
-	rba_bam1 =  int(icb[20:26].encode('hex'),16)
-	num_tmp =  int(icb[27:28].encode('hex'),16)
+	num_bam =   int(icb[4:8].hex(),16)
+	rba_ind1 =  int(icb[14:20].hex(),16)
+	rba_bam1 =  int(icb[20:26].hex(),16)
+	num_tmp =  int(icb[27:28].hex(),16)
 
 	print("\tEyecatcher: {0:s}".format(eyecatcher))
 	print("\tNum of BAM Blks: {0:d}".format(num_bam))
@@ -75,10 +75,10 @@ def dumpBlock(blk,s_off):
 		l = i*32
 		sys.stdout.write("{0:05X}:".format((l+s_off)))
 		for j in range(l+0,l+32):
-			p_byte=blk[j].encode('hex')
+			p_byte=int.to_bytes(blk[j]).hex()
 			sys.stdout.write("{0:s} ".format(p_byte))
-		print
-	print
+		print("")
+	print("")
 
 ##
 # dump the hashes from the parsed hashes
@@ -98,7 +98,7 @@ def dumpHashes(hashes):
 			# DES type hash
 			if pt == 12:
 				# IBMUSER:$racf$*IBMUSER*F9XXXXXXXXXXXXX7
-				print("{0:s}:$racf$*{0:s}*{1:s}".format(u,pw.encode('hex').upper()))
+				print("{0:s}:$racf$*{0:s}*{1:s}".format(u,pw.hex().upper()))
 
 			# Check KDFAES hashes
 		else:
@@ -112,13 +112,13 @@ def dumpHashes(hashes):
 			# KDFAES Password
 			# printed parts are in the order req'd for john
 			if pwt == 12 and pht == 100:
-				print("{0:s}:$racf$*{0:s}*{1:s}{2:s}".format(u,pw2.encode('hex').upper(),
-				pw1.encode('hex').upper()))
+				print("{0:s}:$racf$*{0:s}*{1:s}{2:s}".format(u,pw2.hex().upper(),
+				pw1.hex().upper()))
 
 			# KDFAES Passphrase
 			elif pwt == 87 and pht == 104:
-				print("{0:s}:$racf$*{0:s}*{1:s}{2:s}".format(u,pw2.encode('hex').upper(),
-				pw1.encode('hex').upper()))
+				print("{0:s}:$racf$*{0:s}*{1:s}{2:s}".format(u,pw2.hex().upper(),
+				pw1.hex().upper()))
 			else:
 				print("Debug: PH miss {0:s}".format(p))
 
@@ -151,13 +151,13 @@ def parseHashes(users,hashes,f):
 
 			# userprofile address and length
 			up = u[1]
-			upl = int(f[up+5:up+9].encode('hex'),16)
+			upl = int(f[up+5:up+9].hex(),16)
 
 			# entire user profile record
 			upr = f[up:up+upl]
 
 			# profile name length & profile name
-			pnl = int(f[up+17:up+19].encode('hex'),16)
+			pnl = int(f[up+17:up+19].hex(),16)
 			pn = f[up+20:up+20+pnl]
 
 			# actual profile starting offset
@@ -176,7 +176,7 @@ def parseHashes(users,hashes,f):
 
 				# mark the extended fields high order bit set
 				if fl >> 7 == 1:
-					fl = int(ppr[p+2:p+5].encode('hex'),16)
+					fl = int(ppr[p+2:p+5].hex(),16)
 					fd = ppr[p+5:p+5+fl]
 					op = p # save original p for printing
 					p = p + 5 + fl
@@ -196,7 +196,7 @@ def parseHashes(users,hashes,f):
 					if DEBUG > 1:
 						print("\tFound active profile + passfield.")
 					if DEBUG > 0:
-						print ("\t\t{0:X} {1:>8s}:fn:{2:3d}:len:{3:<#5x}:data:{4:s}".format(pso+op,un,ord(fn),fl,fd.encode('hex').upper()))
+						print ("\t\t{0:X} {1:>8s}:fn:{2:3d}:len:{3:<#5x}:data:{4:s}".format(pso+op,un,ord(fn),fl,fd.hex().upper()))
 					# populate our lists with user pass fields
 					ulist.append([ord(fn),fd])
 					found = True
@@ -220,17 +220,17 @@ def parseIndexRecords(j,indBlk,blkoff,curr,users):
 	global recEntryName
 	indRecIdent= indBlk[curr:curr+1]                             # identificate of record
 	indRecType = indBlk[curr+1:curr+2]                           # this record's type
-	indRecLen  = int((indBlk[curr+2:curr+4]).encode('hex'),16)   # length of this record
+	indRecLen  = int((indBlk[curr+2:curr+4]).hex(),16)   # length of this record
 
 	# focus on the records we want
 	rec = indBlk[curr:curr+indRecLen]
 
 	# ugly debug
 	if DEBUG > 2:
-		print("{0:05X}".format(curr+blkoff) + ":" + rec.encode('hex'))
+		print("{0:05X}".format(curr+blkoff) + ":" + rec.hex())
 
-	recComp = int((rec[6:8]).encode('hex'),16)
-	recEntryNameLen = int((rec[8:10]).encode('hex'),16)
+	recComp = int((rec[6:8]).hex(),16)
+	recEntryNameLen = int((rec[8:10]).hex(),16)
 	recSegOff = 12 + recEntryNameLen
 
 	##
@@ -251,7 +251,7 @@ def parseIndexRecords(j,indBlk,blkoff,curr,users):
 
 		# high debug
 		if DEBUG > 1:
-			print("\tSegData {0:s}".format(segData.encode('hex')))
+			print("\tSegData {0:s}".format(segData.hex()))
 
 		# record segment type
 		recSegType = segData[0:1]
@@ -259,7 +259,7 @@ def parseIndexRecords(j,indBlk,blkoff,curr,users):
 		# ensure we have a non-alias
 		if recSegType != IT_ALIAS:
 			rba = 0
-			rst = int(recSegType.encode('hex'),16)
+			rst = int(recSegType.hex(),16)
 			sd = segData[1:]
 
 			# parse segmentara for base
@@ -268,7 +268,7 @@ def parseIndexRecords(j,indBlk,blkoff,curr,users):
 
 				# get segtype base
 				if segIdent == T_SEGBASE:
-					rba = int(sd[k+1:k+7].encode('hex'),16)
+					rba = int(sd[k+1:k+7].hex(),16)
 					users.append([recEntryName,rba,"BASE"])
 					if DEBUG > 0:
 						print(("USER: Ind blk: {0:06X} rec: {1:02d} offset:{2:04X} " +
@@ -294,7 +294,7 @@ def mainprog(ff):
 	f = ff.read()
 
 	# calculate # of 4096 blocks (per documentation)
-	numblks = len(f) / 4096
+	numblks = int(len(f) / 4096)
 	s_block = 0
 
 	# high db options
@@ -342,10 +342,10 @@ def mainprog(ff):
 		if (bt == T_IND and bid == I_BLKID): # 0x8a && 0x4e
 			# high debug
 			if DEBUG > 1:
-				print("{0:x}:{1:s}:IndexBlock".format(blkoff, T_IND.encode('hex').upper()))
+				print("{0:x}:{1:s}:IndexBlock".format(blkoff, T_IND.hex().upper()))
 
 			# size of index
-			indSz  = int((f[blkoff+1:blkoff+3]).encode('hex'),16)
+			indSz  = int((f[blkoff+1:blkoff+3]).hex(),16)
 
 			# high debug
 			if DEBUG > 1:
@@ -361,7 +361,7 @@ def mainprog(ff):
 			if indType == T_INDREG:  # 0x00
 
 				# counter of index blocks
-				indCount = int(indBlk[12:14].encode('hex'),16)
+				indCount = int(indBlk[12:14].hex(),16)
 
 				# first record offset ?? accounts for header?
 				curr = 14
