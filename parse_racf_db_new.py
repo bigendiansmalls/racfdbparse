@@ -2,6 +2,8 @@
 ##
 # Created by :  Bigendian Smalls
 # Date:  1.31.2019
+# Date:  4.03.2024
+#   - Converted to python3 compatible
 # 
 # Copyright 2019  Bigendian Smalls
 # 
